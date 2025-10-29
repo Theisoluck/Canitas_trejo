@@ -8,42 +8,44 @@ interface UserManagerProps {
   onViewOperator: (operatorId: string) => void;
 }
 
+type UserRole = 'admin' | 'operator';
+
 export default function UserManager({ onBack, onViewOperator }: UserManagerProps) {
   const { profile: adminProfile } = useAuth();
-  const [operators, setOperators] = useState<Profile[]>([]);
+  const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [editingOperator, setEditingOperator] = useState<Profile | null>(null);
+  const [editingUser, setEditingUser] = useState<Profile | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     full_name: '',
+    role: 'operator' as UserRole,
     is_active: true,
   });
 
   useEffect(() => {
-    loadOperators();
+    loadUsers();
   }, []);
 
-  const loadOperators = async () => {
+  const loadUsers = async () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('role', 'operator')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setOperators(data || []);
+      setUsers(data || []);
     } catch (error) {
-      console.error('Error loading operators:', error);
+      console.error('Error loading users:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateOperator = async (e: React.FormEvent) => {
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -60,7 +62,7 @@ export default function UserManager({ onBack, onViewOperator }: UserManagerProps
             id: authData.user.id,
             email: formData.email,
             full_name: formData.full_name,
-            role: 'operator',
+            role: formData.role,
             created_by: adminProfile?.id,
             is_active: formData.is_active,
           });
@@ -69,41 +71,42 @@ export default function UserManager({ onBack, onViewOperator }: UserManagerProps
       }
 
       setShowModal(false);
-      setFormData({ email: '', password: '', full_name: '', is_active: true });
-      loadOperators();
+      setFormData({ email: '', password: '', full_name: '', role: 'operator', is_active: true });
+      loadUsers();
     } catch (error) {
-      console.error('Error creating operator:', error);
-      alert('Error al crear operador. Verifica que el email no esté registrado.');
+      console.error('Error creating user:', error);
+      alert('Error al crear usuario. Verifica que el email no esté registrado.');
     }
   };
 
-  const handleUpdateOperator = async (e: React.FormEvent) => {
+  const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingOperator) return;
+    if (!editingUser) return;
 
     try {
       const { error } = await supabase
         .from('profiles')
         .update({
           full_name: formData.full_name,
+          role: formData.role,
           is_active: formData.is_active,
         })
-        .eq('id', editingOperator.id);
+        .eq('id', editingUser.id);
 
       if (error) throw error;
 
       setShowModal(false);
-      setEditingOperator(null);
-      setFormData({ email: '', password: '', full_name: '', is_active: true });
-      loadOperators();
+      setEditingUser(null);
+      setFormData({ email: '', password: '', full_name: '', role: 'operator', is_active: true });
+      loadUsers();
     } catch (error) {
-      console.error('Error updating operator:', error);
-      alert('Error al actualizar operador.');
+      console.error('Error updating user:', error);
+      alert('Error al actualizar usuario.');
     }
   };
 
-  const handleDeleteOperator = async (operatorId: string) => {
-    if (!confirm('¿Estás seguro de eliminar este operador? Esta acción no se puede deshacer.')) {
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer.')) {
       return;
     }
 
@@ -111,36 +114,37 @@ export default function UserManager({ onBack, onViewOperator }: UserManagerProps
       const { error } = await supabase
         .from('profiles')
         .delete()
-        .eq('id', operatorId);
+        .eq('id', userId);
 
       if (error) throw error;
-      loadOperators();
+      loadUsers();
     } catch (error) {
-      console.error('Error deleting operator:', error);
-      alert('Error al eliminar operador.');
+      console.error('Error deleting user:', error);
+      alert('Error al eliminar usuario.');
     }
   };
 
   const openCreateModal = () => {
-    setEditingOperator(null);
-    setFormData({ email: '', password: '', full_name: '', is_active: true });
+    setEditingUser(null);
+    setFormData({ email: '', password: '', full_name: '', role: 'operator', is_active: true });
     setShowModal(true);
   };
 
-  const openEditModal = (operator: Profile) => {
-    setEditingOperator(operator);
+  const openEditModal = (user: Profile) => {
+    setEditingUser(user);
     setFormData({
-      email: operator.email,
+      email: user.email,
       password: '',
-      full_name: operator.full_name || '',
-      is_active: operator.is_active ?? true,
+      full_name: user.full_name || '',
+      role: user.role as UserRole,
+      is_active: user.is_active ?? true,
     });
     setShowModal(true);
   };
 
-  const filteredOperators = operators.filter(op =>
-    op.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    op.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredUsers = users.filter(user =>
+    user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -160,7 +164,7 @@ export default function UserManager({ onBack, onViewOperator }: UserManagerProps
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
             >
               <Plus className="w-4 h-4" />
-              Crear Operador
+              Crear Usuario
             </button>
           </div>
         </div>
@@ -168,8 +172,8 @@ export default function UserManager({ onBack, onViewOperator }: UserManagerProps
 
       <main className="max-w-7xl mx-auto px-6 py-8">
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-slate-800 mb-2">Gestión de Operadores</h2>
-          <p className="text-slate-600">Administra las cuentas de operadores del sistema</p>
+          <h2 className="text-3xl font-bold text-slate-800 mb-2">Gestión de Usuarios</h2>
+          <p className="text-slate-600">Administra las cuentas de usuarios del sistema (administradores y operadores)</p>
         </div>
 
         <div className="mb-6">
@@ -187,7 +191,7 @@ export default function UserManager({ onBack, onViewOperator }: UserManagerProps
 
         {loading ? (
           <div className="text-center py-12">
-            <p className="text-slate-600">Cargando operadores...</p>
+            <p className="text-slate-600">Cargando usuarios...</p>
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -197,27 +201,39 @@ export default function UserManager({ onBack, onViewOperator }: UserManagerProps
                   <tr>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Nombre</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Email</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Rol</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Estado</th>
                     <th className="px-6 py-4 text-left text-sm font-semibold text-slate-700">Fecha Creación</th>
                     <th className="px-6 py-4 text-right text-sm font-semibold text-slate-700">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {filteredOperators.length === 0 ? (
+                  {filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
-                        {searchTerm ? 'No se encontraron operadores' : 'No hay operadores registrados'}
+                      <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                        {searchTerm ? 'No se encontraron usuarios' : 'No hay usuarios registrados'}
                       </td>
                     </tr>
                   ) : (
-                    filteredOperators.map((operator) => (
-                      <tr key={operator.id} className="hover:bg-slate-50 transition">
+                    filteredUsers.map((user) => (
+                      <tr key={user.id} className="hover:bg-slate-50 transition">
                         <td className="px-6 py-4 text-sm text-slate-800">
-                          {operator.full_name || 'Sin nombre'}
+                          {user.full_name || 'Sin nombre'}
                         </td>
-                        <td className="px-6 py-4 text-sm text-slate-600">{operator.email}</td>
+                        <td className="px-6 py-4 text-sm text-slate-600">{user.email}</td>
                         <td className="px-6 py-4">
-                          {operator.is_active ? (
+                          {user.role === 'admin' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                              Administrador
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full">
+                              Operador
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          {user.is_active ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                               <UserCheck className="w-3 h-3" />
                               Activo
@@ -230,26 +246,28 @@ export default function UserManager({ onBack, onViewOperator }: UserManagerProps
                           )}
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-600">
-                          {new Date(operator.created_at).toLocaleDateString()}
+                          {new Date(user.created_at).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-end gap-2">
+                            {user.role === 'operator' && (
+                              <button
+                                onClick={() => onViewOperator(user.id)}
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                                title="Ver detalles"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                            )}
                             <button
-                              onClick={() => onViewOperator(operator.id)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                              title="Ver detalles"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => openEditModal(operator)}
+                              onClick={() => openEditModal(user)}
                               className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition"
                               title="Editar"
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => handleDeleteOperator(operator.id)}
+                              onClick={() => handleDeleteUser(user.id)}
                               className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
                               title="Eliminar"
                             >
@@ -271,9 +289,9 @@ export default function UserManager({ onBack, onViewOperator }: UserManagerProps
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6">
             <h3 className="text-2xl font-bold text-slate-800 mb-6">
-              {editingOperator ? 'Editar Operador' : 'Crear Nuevo Operador'}
+              {editingUser ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
             </h3>
-            <form onSubmit={editingOperator ? handleUpdateOperator : handleCreateOperator}>
+            <form onSubmit={editingUser ? handleUpdateUser : handleCreateUser}>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -288,7 +306,7 @@ export default function UserManager({ onBack, onViewOperator }: UserManagerProps
                   />
                 </div>
 
-                {!editingOperator && (
+                {!editingUser && (
                   <>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -319,6 +337,21 @@ export default function UserManager({ onBack, onViewOperator }: UserManagerProps
                   </>
                 )}
 
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Rol
+                  </label>
+                  <select
+                    value={formData.role}
+                    onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="operator">Operador</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                </div>
+
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
@@ -338,7 +371,7 @@ export default function UserManager({ onBack, onViewOperator }: UserManagerProps
                   type="button"
                   onClick={() => {
                     setShowModal(false);
-                    setEditingOperator(null);
+                    setEditingUser(null);
                   }}
                   className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
                 >
@@ -348,7 +381,7 @@ export default function UserManager({ onBack, onViewOperator }: UserManagerProps
                   type="submit"
                   className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
                 >
-                  {editingOperator ? 'Actualizar' : 'Crear'}
+                  {editingUser ? 'Actualizar' : 'Crear'}
                 </button>
               </div>
             </form>

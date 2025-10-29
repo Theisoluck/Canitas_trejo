@@ -1,9 +1,10 @@
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
+import AdminDashboard from './components/AdminDashboard';
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
 
   if (loading) {
     return (
@@ -16,7 +17,15 @@ function AppContent() {
     );
   }
 
-  return user ? <Dashboard /> : <LoginScreen />;
+  if (!user) {
+    return <LoginScreen />;
+  }
+
+  if (profile?.role === 'admin') {
+    return <AdminDashboard />;
+  }
+
+  return <Dashboard />;
 }
 
 function App() {
